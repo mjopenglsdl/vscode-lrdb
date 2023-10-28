@@ -17,13 +17,14 @@ import { readFileSync, existsSync } from 'fs'
 import { spawn, ChildProcess } from 'child_process'
 import * as path from 'path'
 import { LuaWasm, LRDBAdapter, LRDBClient } from 'lrdb-debuggable-lua'
+import { platform } from 'os'
 
 export interface LaunchRequestArguments
   extends DebugProtocol.LaunchRequestArguments {
   program: string
   args: string[]
   cwd: string
-
+  extensionPath: string;
   useInternalLua?: boolean
   port: number
   sourceRoot?: string | string[]
@@ -72,6 +73,8 @@ type VariableReference =
       return JSON.stringify(value)
     }
   }
+
+const envVariable = "LRDB_DEBUGGER_VSCODE";
 
 export class LuaDebugSession extends DebugSession {
   // Lua
@@ -207,9 +210,19 @@ export class LuaDebugSession extends DebugSession {
         new LRDBAdapter.ChildProcessAdapter(this._debug_server_process)
       )
     } else {
-      this._debug_server_process = spawn(args.program, programArg, {
-        cwd: cwd,
-      })
+      
+      const processOptions = {cwd, env: Object.assign({}, process.env)};
+      processOptions.env[envVariable] = "1";
+      
+      let lua_module_path : string = "";
+      if (process.platform == "win32") {
+        lua_module_path = `win-x64${path.sep}?.dll`;
+      } else if (process.platform == "linux") {
+        lua_module_path = `linux-x64${path.sep}?.so`;
+      }
+      processOptions.env["LUA_CPATH"] = `${args.extensionPath}${path.sep}runtime${path.sep}${lua_module_path}`
+
+      this._debug_server_process = spawn(args.program, programArg, processOptions);
       this._debug_client = new LRDBClient.Client(
         new LRDBAdapter.TcpAdapter(port, 'localhost')
       )

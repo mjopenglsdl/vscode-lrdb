@@ -5,11 +5,15 @@ import * as vscode from 'vscode'
 
 import { localize } from './utilities'
 
+
 export function activate(context: vscode.ExtensionContext): void {
+  const provider = new LRDBConfigurationProvider();
+  provider.extensionPath = context.extensionPath;
+
   context.subscriptions.push(
     vscode.debug.registerDebugConfigurationProvider(
       'lrdb',
-      new LRDBConfigurationProvider()
+      provider
     )
   )
 }
@@ -19,6 +23,8 @@ export function deactivate(): void {
 }
 
 class LRDBConfigurationProvider implements vscode.DebugConfigurationProvider {
+  public extensionPath : string | undefined;
+
   /**
    * Returns an initial debug configuration based on contextual information, e.g. package.json or folder.
    */
@@ -56,6 +62,8 @@ class LRDBConfigurationProvider implements vscode.DebugConfigurationProvider {
         config.cwd = path.dirname(config.program)
       }
     }
+
+    config.extensionPath = this.extensionPath;
 
     return config
   }
